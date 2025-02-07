@@ -44,7 +44,63 @@ To receive notifications when tokens are sent to your instance of the TokenRecei
 ### Deployed instances
 
 ```
-Polygon Mainnet instance: 0xc250E8753b4dE090BC19573CB97903a10D423B64
+Polygon Mainnet main instance: 0xdC4AE8cC75FcA9Da7054e03E7A770DE72A66bEB1
+Polygon Mainnet test instance: 0x66C3416a893255bFfBbCDEF6Fafc6324F0b73FB3
+```
+
+If you wish for another instance to be deployed on another network (or a testnet), please file an issue and we'll be in touch!
+
+### How to integrate the GP token within your project
+
+This section aims to describe how to integrate the GP token within game-related projects, where using (i.e paying) GPs would trigger some arbitrary process server-side.
+Example: a user spends some GP tokens on your game to run a gacha process and obtain game-related items.
+
+Since the GP token behaves mostly like an ERC20 token, its integration within your project is similar. However, transfers are restricted to whitelisted addresses, so the following process needs to be done:
+
+1. Contact us:
+
+- Either you wish to use an existing address to receive GPs, or you wish to use the dedicated TokenReceiver contract [recommended]
+- In all cases, this address needs to be whitelisted at the GP contract level (which may be done by GP admins)
+
+2. From your front-end, integrate the GP token
+
+- Read queries: balanceOf will directly return the non-expired tokens which may be used
+- Transaction to integrate: use safeTransferFrom to trigger a transfer from the user's wallet to your address (or token receiver)
+
+```
+const signer = await provider.getSigner();
+const userAddress = await signer.getAddress();
+const tokenContract = new ethers.Contract(
+  gpTokenAddress,
+  GP_TOKEN_ABI,
+  signer
+);
+const approveTx = await tokenContract.approve(
+  tokenContract.address,
+  ethers.MaxUint256 // Feel free to change to your system's logic
+);
+await approveTx.wait();
+const tx = await tokenContract.safeTransferFrom(
+  userAddress,
+  tokenReceiverAddress,
+  amount
+);
+```
+
+3. Watch the events from the TokenReceiver contract
+
+- On your backend (or whatever service which is expected to run the process), you will want to detect when events are emitted.
+
+```
+const tokenContract = new ethers.Contract(
+  gpTokenAddress,
+  GP_TOKEN_ABI,
+  signer
+);
+const filter = contract.filters.TokensReceived();
+const events = await contract.queryFilter(filter, fromBlock);
+
+// Process the events as required - these events will include the sender address, the amount, the tokenClassId, and the timestamp.
 ```
 
 ## Getting started with the code
